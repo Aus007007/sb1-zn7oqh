@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id              String    @id @default(cuid())
+  name            String
+  domain          String    @unique
+  logo            String?
+  address         String
+  phone           String
+  website         String?
+  industry        String
+  size            CompanySize
+  plan            Plan      @default(BASIC)
+  maxUsers        Int       @default(50)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  tenants         Tenant[]
+  settings        CompanySettings?
+}
+
+model CompanySettings {
+  id                    String    @id @default(cuid())
+  companyId            String    @unique
+  company              Company   @relation(fields: [companyId], references: [id])
+  workingDays          String[]  // ["MONDAY", "TUESDAY", etc.]
+  workingHours         Json      // { start: "09:00", end: "18:00" }
+  timeZone             String    @default("UTC")
+  leavePolicy          Json      // Custom leave policy configuration
+  payrollCycle         String    @default("MONTHLY")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model Tenant {
+  id              String    @id @default(cuid())
+  name            String
+  domain          String    @unique
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id])
+  plan            Plan      @default(BASIC)
+  maxUsers        Int       @default(50)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  users           User[]
+
+  @@index([companyId])
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  password        String
+  name            String
+  role            Role      @default(EMPLOYEE)
+  department      String
+  position        String
+  employeeId      String    @unique
+  joinDate        DateTime
+  contactNumber   String
+  status          UserStatus @default(PENDING)
+  emailVerified   Boolean   @default(false)
+  onboardingCompleted Boolean @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  attendance      Attendance[]
+  leaves          Leave[]
+  performance     Performance[]
+  sessions        Session[]
+  profile         UserProfile?
+  documents       Document[]
+
+  @@index([tenantId])
+}
+
+model UserProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id])
+  avatar          String?
+  dateOfBirth     DateTime?
+  gender          String?
+  address         String?
+  emergencyContact Json?    // { name: string, relation: string, phone: string }
+  bankDetails     Json?     // { accountNumber: string, bankName: string, ifsc: string }
+  documents       Json?     // Array of document references
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Document {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  type            DocumentType
+  name            String
+  url             String
+  verified        Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+enum CompanySize {
+  SMALL     // 1-50
+  MEDIUM    // 51-200
+  LARGE     // 201-1000
+  ENTERPRISE // 1000+
+}
+
+enum DocumentType {
+  ID_PROOF
+  ADDRESS_PROOF
+  EDUCATION
+  EXPERIENCE
+  OTHER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+// ... rest of the existing enums and models remain the same

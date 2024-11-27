@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to get tenant ID from request
+    function getTenantId() {
+      return request.auth.token.tenant_id;
+    }
+    
+    // Helper function to check if user belongs to tenant
+    function belongsToTenant(tenant) {
+      return request.auth.token.tenant_id == tenant;
+    }
+    
+    // Tenant configuration
+    match /tenants/{tenantId} {
+      allow read: if belongsToTenant(tenantId);
+      allow write: if false; // Only admin can modify tenant config
+    }
+    
+    // User profiles
+    match /tenants/{tenantId}/users/{userId} {
+      allow read: if belongsToTenant(tenantId);
+      allow write: if belongsToTenant(tenantId) && request.auth.uid == userId;
+    }
+    
+    // Other collections follow similar pattern
+    match /tenants/{tenantId}/{document=**} {
+      allow read: if belongsToTenant(tenantId);
+      allow write: if belongsToTenant(tenantId);
+    }
+  }
+}
